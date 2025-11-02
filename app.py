@@ -121,7 +121,6 @@ def smart_translate_humor(input_text, target_culture, max_attempts=3):
             model_name = model.split('/')[-1]
             attempts.append(f"Attempt {i+1}: {model_name}")
             
-            # Show which model we're trying
             if max_attempts > 1:
                 st.write(f"🔄 **Trying:** {model_name}...")
             
@@ -143,8 +142,6 @@ def smart_translate_humor(input_text, target_culture, max_attempts=3):
                 data = response.json()
                 if "choices" in data:
                     translated_text = data["choices"][0]["message"]["content"]
-                    
-                    # Validate we got a reasonable response
                     if len(translated_text.strip()) > 10:
                         if max_attempts > 1:
                             st.success(f"✅ **Success with {model_name}!**")
@@ -162,7 +159,6 @@ def smart_translate_humor(input_text, target_culture, max_attempts=3):
                 if max_attempts > 1:
                     st.warning(f"❌ {model_name} failed ({error_msg})")
                 
-            # Brief pause before next attempt
             if i < max_attempts - 1:
                 time.sleep(2)
                 
@@ -175,7 +171,6 @@ def smart_translate_humor(input_text, target_culture, max_attempts=3):
                 st.warning(f"❌ {model_name} error: {str(e)[:50]}...")
             attempts.append(f"Attempt {i+1}: {model_name} - Error")
 
-    # If all models failed
     return None, None, attempts
 
 # -------------------- UI --------------------
@@ -211,7 +206,6 @@ else:
 
     st.divider()
     
-    # Show history if requested
     if st.session_state.get("show_history"):
         st.subheader("📜 Your Translation History")
         translations = get_user_translations()
@@ -229,11 +223,9 @@ else:
             st.session_state["show_history"] = False
         st.divider()
 
-    # Main translator interface
     if not st.session_state.get("show_history"):
-        st.subheader(" Humor Translator")
+        st.subheader("Humor Translator")
         
-        # Input fields
         input_text = st.text_area(
             "Enter a joke or funny phrase:", 
             placeholder="Type something like 'Why did the chicken cross the road?'",
@@ -251,12 +243,10 @@ else:
         with col2:
             max_attempts = st.selectbox("Models to try", [1, 2, 3], index=2, help="How many AI models to try if one fails")
 
-        # Advanced options
         with st.expander("⚙️ Advanced Options"):
             save_translation = st.checkbox("Save to my history", value=True)
             show_debug = st.checkbox("Show debug information", value=False)
 
-        # Translate button
         if st.button("Translate Humor 🎉", use_container_width=True, type="primary"):
             if not input_text or not target_culture:
                 st.warning("Please fill in both fields.")
@@ -266,72 +256,71 @@ else:
                         input_text, target_culture, max_attempts
                     )
                     
-                    # Display results
                     if translated_text:
                         st.success("✅ Culturally adapted humor:")
                         st.markdown(f"### {translated_text}")
-			
-			 		    # ---- TEXT TO SPEECH SECTION ----
-   			 import streamlit.components.v1 as components
 
-   			 # Add a speaker icon button
-  			  speak_button = f"""
-   			 <script>
-  			  function speakText(text) {{
-       			 const utterance = new SpeechSynthesisUtterance(text);
-       			 utterance.lang = 'en';
-      			 utterance.rate = 1.0;
-        		 utterance.pitch = 1.0;
-       			 speechSynthesis.speak(utterance);
-   			 }}
-   		 </script>
-  		  <button 
-       		 style="background-color:#f0f0f0;
-            		   border:none;
-              		   border-radius:8px;
-            		   padding:8px 12px;
-            		   margin-top:10px;
-             		  cursor:pointer;
-             		  font-size:16px;">
-       			 🔊 Click to Listen
-   			 </button>
-    			 <script>
-    			const button = document.currentScript.previousElementSibling;
-    			button.addEventListener('click', () => {{
-       			speakText({json.dumps(translated_text)});
-   			}});
-   			 </script>
-   			 """
+                        # ---- TEXT TO SPEECH SECTION (FREE) ----
+                        import streamlit.components.v1 as components
 
-    			components.html(speak_button, height=60)
+                        # Optional: simple language accent mapping
+                        lang_map = {
+                            "indian": "hi-IN",
+                            "japanese": "ja-JP",
+                            "german": "de-DE",
+                            "french": "fr-FR",
+                            "chinese": "zh-CN",
+                            "gen z": "en-US",
+                            "corporate": "en-GB"
+                        }
+                        lang_code = lang_map.get(target_culture.strip().lower(), "en-US")
 
-                        
-                        # Show which model worked
-                        if show_debug and model_used:
-                            model_name = model_used.split('/')[-1]
-                            st.info(f"**Model used:** {model_name}")
-                        
-                        # Save to database
+                        speak_button = f"""
+                        <script>
+                        function speakText(text, lang) {{
+                            const utterance = new SpeechSynthesisUtterance(text);
+                            utterance.lang = lang;
+                            utterance.rate = 1.0;
+                            utterance.pitch = 1.0;
+                            speechSynthesis.speak(utterance);
+                        }}
+                        </script>
+                        <button 
+                            style="background-color:#f0f0f0;
+                                   border:none;
+                                   border-radius:8px;
+                                   padding:8px 12px;
+                                   margin-top:10px;
+                                   cursor:pointer;
+                                   font-size:16px;">
+                            🔊 Click to Listen
+                        </button>
+                        <script>
+                        const button = document.currentScript.previousElementSibling;
+                        button.addEventListener('click', () => {{
+                            speakText({json.dumps(translated_text)}, {json.dumps(lang_code)});
+                        }});
+                        </script>
+                        """
+
+                        components.html(speak_button, height=60)
+
                         if save_translation and model_used:
-                            save_translation_to_db(input_text, target_culture, translated_text, 					model_used)
+                            save_translation_to_db(input_text, target_culture, translated_text, model_used)
                             st.success("Saved to your history!")
-                        
-                        # Store in session state
+
                         st.session_state.last_translation = {
                             "original": input_text,
                             "target": target_culture,
                             "translated": translated_text,
                             "model": model_used
                         }
-                        
+
                     else:
                         st.error("😵 All AI models failed! Here's what happened:")
-                        
-                        # Show detailed attempt history
                         st.write("### Attempt History:")
                         for attempt in attempts:
                             st.write(f"- {attempt}")
-                        
                         st.info("""
                         **💡 What to do now:**
                         - Wait 5-10 minutes and try again
@@ -340,43 +329,35 @@ else:
                         - Free AI models often get busy during peak times
                         """)
 
-        # Debug information
         if show_debug:
             st.divider()
             st.subheader("🔧 Debug Information")
-            
             st.write("**Available free models:**")
             for i, model in enumerate(FREE_MODELS[:5]):
                 st.write(f"{i+1}. {model}")
             st.caption(f"... and {len(FREE_MODELS) - 5} more backup models")
-            
             if 'last_translation' in st.session_state:
                 st.write("**Last translation:**")
                 st.json(st.session_state.last_translation)
 
-        # Quick tips
         st.divider()
         st.subheader("💡 Quick Tips")
         col1, col2, col3 = st.columns(3)
-        
         with col1:
             st.markdown("**Popular Cultures:**")
             st.write("- Indian")
             st.write("- Japanese")
             st.write("- Gen Z")
-            
         with col2:
             st.markdown("**Example Jokes:**")
             st.write("- 'Knock knock' jokes")
             st.write("- Puns")
             st.write("- Meme phrases")
-            
         with col3:
             st.markdown("**Best Practices:**")
             st.write("- Be specific")
             st.write("- Keep it clean")
             st.write("- Have fun! 😄")
 
-# Footer
 st.markdown("---")
 st.caption("Powered by multiple free AI models | Automatic fallback system | Your humor, globally understood!")
